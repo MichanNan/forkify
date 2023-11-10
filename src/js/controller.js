@@ -12,12 +12,15 @@ if (module.hot) {
   module.hot.accept();
 }
 
-const controllRecipes = async function () {
+const controlRecipes = async function () {
   try {
     const id = window.location.hash.slice(1);
 
     if (!id) return;
     recipeView.renderSpinner();
+
+    //update result view to mark selected cearch result
+    resultsView.update(model.getSearchResultsPage());
 
     // loading recipe
     await model.loadRecipe(id);
@@ -49,7 +52,7 @@ const controlSearchResults = async function () {
   }
 };
 
-const controllPagination = function (goToPage) {
+const controlPagination = function (goToPage) {
   //render new result
   resultsView.render(model.getSearchResultsPage(goToPage));
 
@@ -57,10 +60,19 @@ const controllPagination = function (goToPage) {
   paginationView.render(model.state.search);
 };
 
+const controlServings = function (newServings) {
+  //update the recipe servings (in the state)
+  model.updateServings(newServings);
+  //update the recipe view
+  // recipeView.render(model.state.recipe);
+  recipeView.update(model.state.recipe);
+};
+
 const init = function () {
-  recipeView.addHandlerRender(controllRecipes);
+  recipeView.addHandlerRender(controlRecipes);
+  recipeView.addHandlerUpdateServings(controlServings);
   searchView.addHandlerSearch(controlSearchResults);
-  paginationView.addHandlerClick(controllPagination);
+  paginationView.addHandlerClick(controlPagination);
 };
 
 init();
