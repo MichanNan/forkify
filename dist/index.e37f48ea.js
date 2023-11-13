@@ -667,6 +667,7 @@ const controlAddRecipe = async function(newRecipe) {
         window.history.pushState(null, "", `#${_modelJs.state.recipe.id}`);
         //close the form
         setTimeout(function() {
+            (0, _addRecipeViewJsDefault.default).render([]);
             (0, _addRecipeViewJsDefault.default).toggleWindow();
         }, (0, _configJs.MODAL_CLOSE_SEC) * 1000);
     } catch (error) {
@@ -1971,19 +1972,8 @@ const createRecipeObject = function(data) {
 };
 const loadRecipe = async function(id) {
     try {
-        const data = await (0, _helpersJs.AJAX)(`${(0, _configJs.API_URL)}${id}`);
+        const data = await (0, _helpersJs.AJAX)(`${(0, _configJs.API_URL)}${id}?key=${(0, _configJs.KEY)}`);
         state.recipe = createRecipeObject(data);
-        const { recipe } = data.data;
-        state.recipe = {
-            id: recipe.id,
-            title: recipe.title,
-            publisher: recipe.publisher,
-            sourceUrl: recipe.source_url,
-            image: recipe.image_url,
-            servings: recipe.servings,
-            cookingTime: recipe.cooking_time,
-            ingredients: recipe.ingredients
-        };
         if (state.bookmarks.some((bookmark)=>bookmark.id === id)) state.recipe.bookmarked = true;
         else state.recipe.bookmarked = false;
     } catch (error) {
@@ -1993,13 +1983,16 @@ const loadRecipe = async function(id) {
 const loadSearchResults = async function(query) {
     try {
         state.search.query = query;
-        const data = await (0, _helpersJs.AJAX)(`${(0, _configJs.API_URL)}?search=${query}`);
+        const data = await (0, _helpersJs.AJAX)(`${(0, _configJs.API_URL)}?search=${query}&key=${(0, _configJs.KEY)}`);
         state.search.results = data.data.recipes.map((rec)=>{
             return {
                 id: rec.id,
                 title: rec.title,
                 publisher: rec.publisher,
-                image: rec.image_url
+                image: rec.image_url,
+                ...rec.key && {
+                    key: rec.key
+                }
             };
         });
         state.search.page = 1;
@@ -2043,7 +2036,7 @@ init();
 const uploadRecipe = async function(newRecipe) {
     try {
         const ingredients = Object.entries(newRecipe).filter((entry)=>entry[0].startsWith("ingredient") && entry[1] !== "").map((ing)=>{
-            const ingArr = ing[1].replaceAll(" ", "").split(",");
+            const ingArr = ing[1].split(",").map((el)=>el.trim());
             if (ingArr.length !== 3) throw new Error("Wrong ingredient format!");
             const [quantity, unit, description] = ingArr;
             return {
@@ -2219,8 +2212,11 @@ class RecipeView extends (0, _viewJsDefault.default) {
             </div>
           </div>
 
-          <div class="recipe__user-generated">
-          
+          <div class="recipe__user-generated ${this._data.key ? "" : "hidden"} ">
+          <svg>
+            <use href="${0, _iconsSvgDefault.default}#icon-user"></use>
+          </svg>
+
           </div>
           <button class="btn--round btn--bookmark">
             <svg class="">
@@ -2281,7 +2277,7 @@ var _iconsSvgDefault = parcelHelpers.interopDefault(_iconsSvg);
 class View {
     _data;
     render(data, render = true) {
-        if (!data || Array.isArray(data) && data.length === 0) return this.renderError();
+        if (!data) return this.renderError();
         this._data = data;
         const markup = this._generateMarkup();
         if (!render) return markup;
@@ -2682,6 +2678,8 @@ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 var _view = require("./view");
 var _viewDefault = parcelHelpers.interopDefault(_view);
+var _iconsSvg = require("url:../../img/icons.svg");
+var _iconsSvgDefault = parcelHelpers.interopDefault(_iconsSvg);
 class PreviewView extends (0, _viewDefault.default) {
     _parentElement = "document.querySelector(" * ");";
     _generateMarkup() {
@@ -2697,6 +2695,13 @@ class PreviewView extends (0, _viewDefault.default) {
          ${this._data.title}
         </h4>
         <p class="preview__publisher">${this._data.publisher}</p>
+      
+       <div class="preview__user-generated ${this._data.key ? "" : "hidden"} ">
+        <svg>
+         <use href="${0, _iconsSvgDefault.default}#icon-user"></use>
+        </svg>
+
+       </div>
       </div>
     </a>
   </li> 
@@ -2705,7 +2710,7 @@ class PreviewView extends (0, _viewDefault.default) {
 }
 exports.default = new PreviewView();
 
-},{"./view":"bWlJ9","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"6z7bi":[function(require,module,exports) {
+},{"./view":"bWlJ9","url:../../img/icons.svg":"loVOp","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"6z7bi":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 var _view = require("./view");
@@ -2790,7 +2795,7 @@ var _view = require("./view");
 var _viewDefault = parcelHelpers.interopDefault(_view);
 class AddRecipeView extends (0, _viewDefault.default) {
     _parentElement = document.querySelector(".upload");
-    _message = "Reciep was successfully uploaded";
+    _message = "Recipe was successfully uploaded";
     _window = document.querySelector(".add-recipe-window");
     _overlay = document.querySelector(".overlay");
     _btnOpen = document.querySelector(".nav__btn--add-recipe");
@@ -2799,6 +2804,77 @@ class AddRecipeView extends (0, _viewDefault.default) {
         super();
         this._addHandlerShowWindow();
         this._addHandlerHideWindow();
+    }
+    _generateMarkup() {
+        return `       
+    <div class="upload__column">
+          <h3 class="upload__heading">Recipe data</h3>
+          <label>Title</label>
+          <input value="TEST23" required name="title" type="text" />
+          <label>URL</label>
+          <input value="TEST23" required name="sourceUrl" type="text" />
+          <label>Image URL</label>
+          <input value="TEST23" required name="image" type="text" />
+          <label>Publisher</label>
+          <input value="TEST23" required name="publisher" type="text" />
+          <label>Prep time</label>
+          <input value="23" required name="cookingTime" type="number" />
+          <label>Servings</label>
+          <input value="23" required name="servings" type="number" />
+        </div>
+
+        <div class="upload__column">
+          <h3 class="upload__heading">Ingredients</h3>
+          <label>Ingredient 1</label>
+          <input
+            value="0.5,kg,Rice"
+            type="text"
+            required
+            name="ingredient-1"
+            placeholder="Format: 'Quantity,Unit,Description'"
+          />
+          <label>Ingredient 2</label>
+          <input
+            value="1,,Avocado"
+            type="text"
+            name="ingredient-2"
+            placeholder="Format: 'Quantity,Unit,Description'"
+          />
+          <label>Ingredient 3</label>
+          <input
+            value=",,salt"
+            type="text"
+            name="ingredient-3"
+            placeholder="Format: 'Quantity,Unit,Description'"
+          />
+          <label>Ingredient 4</label>
+          <input
+            type="text"
+            name="ingredient-4"
+            placeholder="Format: 'Quantity,Unit,Description'"
+          />
+          <label>Ingredient 5</label>
+          <input
+            type="text"
+            name="ingredient-5"
+            placeholder="Format: 'Quantity,Unit,Description'"
+          />
+          <label>Ingredient 6</label>
+          <input
+            type="text"
+            name="ingredient-6"
+            placeholder="Format: 'Quantity,Unit,Description'"
+          />
+        </div>
+
+        <button type="submit" class="btn upload__btn">
+          <svg>
+            <use href="src/img/icons.svg#icon-upload-cloud"></use>
+          </svg>
+          <span>Upload</span>
+        </button>
+  
+    `;
     }
     toggleWindow() {
         this._overlay.classList.toggle("hidden");
@@ -2812,6 +2888,7 @@ class AddRecipeView extends (0, _viewDefault.default) {
         this._overlay.addEventListener("click", this.toggleWindow.bind(this));
     }
     addHandlerUpload(handler) {
+        const that = this;
         this._parentElement.addEventListener("submit", function(e) {
             e.preventDefault();
             const formData = [
